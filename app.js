@@ -213,6 +213,19 @@ function formatDateTime(isoStr) {
   return d.toLocaleString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+function normalizeYearMonth(rawMonth, fallbackTimestamp = '') {
+  const str = String(rawMonth || '').trim();
+  const ymMatch = str.match(/^(\d{4})-(\d{1,2})/);
+  if (ymMatch) {
+    return `${ymMatch[1]}-${ymMatch[2].padStart(2, '0')}`;
+  }
+  const d = new Date(str || fallbackTimestamp);
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+  return '';
+}
+
 function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -448,7 +461,13 @@ function renderAdmin() {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const monthsSet = new Set([currentMonth]);
-  state.sales.forEach(s => { if (s.month) monthsSet.add(s.month); });
+  state.sales.forEach(s => {
+    const norm = normalizeYearMonth(s.month, s.timestamp);
+    if (norm) {
+      s.month = norm;
+      monthsSet.add(norm);
+    }
+  });
   const sortedMonths = Array.from(monthsSet).sort().reverse();
   const prevSelected = monthFilter.value || currentMonth;
 
@@ -456,7 +475,7 @@ function renderAdmin() {
   monthFilter.value = (prevSelected === 'ALL' || sortedMonths.includes(prevSelected)) ? prevSelected : currentMonth;
 
   const selectedMonth = monthFilter.value;
-  const filteredSales = selectedMonth === 'ALL' ? state.sales : state.sales.filter(s => s.month === selectedMonth);
+  const filteredSales = selectedMonth === 'ALL' ? state.sales : state.sales.filter(s => normalizeYearMonth(s.month, s.timestamp) === selectedMonth);
 
   document.getElementById('shippingRateInput').value = state.shippingRate;
   document.getElementById('commissionRateInput').value = state.commissionRate;
@@ -664,28 +683,6 @@ async function confirmClearAll() {
     setSyncBadge('Google Cloud Sync');
     showToast('Predaje vymazané', 'Všetky predaje v Google Tabuľke boli vynulované.');
     setTimeout(() => { syncFromCloud(false); }, 1000);
-  } catch (err) {
-    setSyncBadge('Chyba', true);
-  }
-}
-
-function requestClearAll() { document.getElementById('resetConfirmBar').classList.remove('hidden'); }
-function cancelClearAll() { document.getElementById('resetConfirmBar').classList.add('hidden'); }
-
-async function confirmClearAll() {
-  cancelClearAll();
-  if (!isApiConfigured()) {
-    state.sales = [];
-    saveLocalFallback();
-    return renderAll();
-  }
-  setSyncBadge('Mažem predaje...');
-  try {
-    const json = await apiRequest({ action: 'clearAllSales' });
-    if (json && json.ok && json.data) applyCloudPayload(json.data);
-    setSyncBadge('Google Cloud Sync');
-    renderAll();
-    showToast('Predaje vymazané', 'Všetky predaje v Google Tabuľke boli vynulované.');
   } catch (err) {
     setSyncBadge('Chyba', true);
   }
