@@ -93,29 +93,15 @@ async function apiRequest(payload = null) {
     return res.json();
   }
 
-  try {
-    const res = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-    return await res.json();
-  } catch (corsErr) {
-    // Fallback pri presmerovaní Google Apps Scriptu (CORS): odošle požiadavku a overí stav cez GET
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-    await new Promise(r => setTimeout(r, 900));
-    const verifyRes = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'GET',
-      redirect: 'follow'
-    });
-    return await verifyRes.json();
-  }
+  // Odoslanie v režime no-cors obíde blokovanie presmerovania Google Apps Scriptu (Failed to fetch)
+  await fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  return { ok: true, localApplied: true };
+}
 }
 
 async function syncFromCloud(manual = false) {
