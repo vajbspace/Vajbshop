@@ -86,14 +86,18 @@ function setSyncBadge(text, isError = false) {
 async function apiRequest(payload = null) {
   if (!isApiConfigured()) return null;
   if (!payload) {
-    const res = await fetch(GOOGLE_SCRIPT_URL, {
+    // Pridanie časovej pečiatky zabráni prehliadaču načítať starú prázdnu odpoveď z cache
+    const sep = GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?';
+    const res = await fetch(`${GOOGLE_SCRIPT_URL}${sep}t=${Date.now()}`, {
       method: 'GET',
-      redirect: 'follow'
+      redirect: 'follow',
+      cache: 'no-store'
     });
+    if (!res.ok) throw new Error(`HTTP chyba ${res.status}`);
     return res.json();
   }
 
-  // Odoslanie v režime no-cors obíde blokovanie presmerovania Google Apps Scriptu (Failed to fetch)
+  // Odoslanie v režime no-cors obíde blokovanie presmerovania Google Apps Scriptu
   await fetch(GOOGLE_SCRIPT_URL, {
     method: 'POST',
     mode: 'no-cors',
@@ -269,6 +273,8 @@ function switchTab(tab) {
     tabAdminBtn.className = 'flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-bold transition-all duration-150 bg-[#0097B2] text-white shadow-xs';
     tabPosBtn.className = 'flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-bold transition-all duration-150 text-[#231F20]/75 hover:text-[#231F20]';
     renderAdmin();
+    // Pri vstupe do manažérskeho prehľadu vždy natiahne čerstvé dáta z Google Tabuľky
+    syncFromCloud(false);
   }
 }
 
@@ -612,13 +618,13 @@ async function saveConfigToCloud() {
   if (!isApiConfigured()) return showToast('Chýba API link', 'Doplň URL z Google Tabuľky do app.js.');
   setSyncBadge('Ukladám...');
   try {
-    const json = await apiRequest({
+    await apiRequest({
       action: 'saveConfig',
       config: { shippingRate: state.shippingRate, commissionRate: state.commissionRate, adminPassword: state.adminPassword, barbers: state.barbers, products: state.products }
     });
-    if (json && json.ok && json.data) applyCloudPayload(json.data);
     setSyncBadge('Google Cloud Sync');
     showToast('Uložené do cloudu', 'Nastavenia, ceny aj % barberov sú uložené v Google Tabuľke.');
+    setTimeout(() => { syncFromCloud(false); }, 1000);
   } catch (err) {
     setSyncBadge('Chyba ukladania', true);
     showToast('Chyba', err.message || 'Skús znova.');
@@ -626,18 +632,38 @@ async function saveConfigToCloud() {
 }
 
 async function deleteSale(saleId) {
-  if (!isApiConfigured()) {
-    state.sales = state.sales.filter(s => s.id !== saleId);
-    saveLocalFallback();
-    return renderAll();
-  }
+  state.sales = state.sales.filter(s => String(s.id) !== String(saleId));
+  saveLocalFallback();
+  renderAll();
+
+  if (!isApiConfigured()) return;
   setSyncBadge('Mažem...');
   try {
-    const json = await apiRequest({ action: 'deleteSale', saleId });
-    if (json && json.ok && json.data) applyCloudPayload(json.data);
+    await apiRequest({ action: 'deleteSale', saleId });
     setSyncBadge('Google Cloud Sync');
-    renderAll();
     showToast('Záznam vymazaný', 'Predaj bol odstránený z Google Tabuľky.');
+    setTimeout(() => { syncFromCloud(false); }, 1000);
+  } catch (err) {
+    setSyncBadge('Chyba', true);
+  }
+}
+
+function requestClearAll() { document.getElementById('resetConfirmBar').classList.remove('hidden'); }
+function cancelClearAll() { document.getElementById('resetConfirmBar').classList.add('hidden'); }
+
+async function confirmClearAll() {
+  cancelClearAll();
+  state.sales = [];
+  saveLocalFallback();
+  renderAll();
+
+  if (!isApiConfigured()) return;
+  setSyncBadge('Mažem predaje...');
+  try {
+    await apiRequest({ action: 'clearAllSales' });
+    setSyncBadge('Google Cloud Sync');
+    showToast('Predaje vymazané', 'Všetky predaje v Google Tabuľke boli vynulované.');
+    setTimeout(() => { syncFromCloud(false); }, 1000);
   } catch (err) {
     setSyncBadge('Chyba', true);
   }
