@@ -86,15 +86,36 @@ function setSyncBadge(text, isError = false) {
 async function apiRequest(payload = null) {
   if (!isApiConfigured()) return null;
   if (!payload) {
-    const res = await fetch(GOOGLE_SCRIPT_URL, { method: 'GET' });
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'GET',
+      redirect: 'follow'
+    });
     return res.json();
   }
-  const res = await fetch(GOOGLE_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
-  });
-  return res.json();
+
+  try {
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (corsErr) {
+    // Fallback pri presmerovaní Google Apps Scriptu (CORS): odošle požiadavku a overí stav cez GET
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    await new Promise(r => setTimeout(r, 900));
+    const verifyRes = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'GET',
+      redirect: 'follow'
+    });
+    return await verifyRes.json();
+  }
 }
 
 async function syncFromCloud(manual = false) {
