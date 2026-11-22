@@ -1,5 +1,5 @@
 // SEM VLOŽ SVOJU URL Z GOOGLE APPS SCRIPTU (končí na /exec)
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzaaHh3bFkrxZuXs5-7TY4HSYrjG4TAubRZgvTrV0lSHTjwkhslcnjAbfAGw-5KmzJV/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzufUxXgXXlXjcfdEstDOovR4jiLLUdTxVPGpLYxjwpZtL0XABjgXtmvhJ2ZGVIPs3C/exec';
 
 const LOCAL_FALLBACK_KEY = 'vajb_space_github_cache_v1';
 
@@ -343,9 +343,10 @@ async function recordSale() {
 
   try {
     if (isApiConfigured()) {
-      const json = await apiRequest({ action: 'recordSale', sale: saleObj });
-      if (json && json.ok && json.data) applyCloudPayload(json.data);
-      else state.sales.unshift(saleObj);
+      await apiRequest({ action: 'recordSale', sale: saleObj });
+      state.sales.unshift(saleObj);
+      saveLocalFallback();
+      setTimeout(() => { syncFromCloud(false); }, 900);
     } else {
       state.sales.unshift(saleObj);
       saveLocalFallback();
