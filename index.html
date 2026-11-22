@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vajb Space – Predaj produktov</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="min-h-screen flex flex-col bg-[#FFB6B3] text-[#231F20] selection:bg-[#0097B2] selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-30 bg-white border-b border-[#231F20]/15 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col lg:flex-row items-center justify-between gap-3.5">
+      <div class="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-[#0097B2] text-white font-black text-base flex items-center justify-center tracking-tight shrink-0">
+            VS
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-[#231F20]">Vajb Space – Predaj produktov</h1>
+              <span id="syncBadge" class="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-[#FFB6B3]/35 text-[#231F20] border border-[#231F20]/15">
+                Pripájam...
+              </span>
+            </div>
+            <p class="text-xs text-slate-600">Hlavná 20, Košice • Pokladňa a evidencia provízií</p>
+          </div>
+        </div>
+        <button type="button" onclick="syncFromCloud(true)" class="lg:hidden px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700">
+          Obnoviť
+        </button>
+      </div>
+
+      <nav class="flex w-full lg:w-auto bg-[#FFF3F2] p-1 rounded-xl border border-[#231F20]/15" role="tablist">
+        <button id="tabPosBtn" onclick="switchTab('pos')" role="tab" aria-selected="true" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-bold transition-all duration-150 bg-[#0097B2] text-white shadow-xs">
+          <span>Pokladňa (Zápis predaja)</span>
+        </button>
+        <button id="tabAdminBtn" onclick="switchTab('admin')" role="tab" aria-selected="false" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-bold transition-all duration-150 text-[#231F20]/75 hover:text-[#231F20]">
+          <span>Manažérsky prehľad & Provízie</span>
+        </button>
+      </nav>
+
+      <div class="hidden lg:flex items-center gap-3">
+        <button type="button" onclick="syncFromCloud(true)" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 transition">
+          Synchronizovať dáta
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+    <!-- POKLADŇA (BEZ CIEN A PERCENT) -->
+    <section id="posView" class="space-y-6">
+      <div class="bg-white border border-[#231F20]/15 rounded-2xl p-5 sm:p-7 shadow-md">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-5 mb-6 border-b border-slate-200">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-[#231F20]">Rýchly zápis predaja</h2>
+            <p class="text-sm text-slate-600 mt-0.5">Klikni na svoje meno, vyber produkt a potvrď predaj.</p>
+          </div>
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#FFF3F2] border border-[#231F20]/15 text-xs font-semibold text-[#231F20] self-start sm:self-auto">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Prepojené s Google Tabuľkou</span>
+          </div>
+        </div>
+
+        <div class="space-y-7">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-[#231F20] text-white inline-flex items-center justify-center text-xs font-bold">1</span>
+                Vyber barbera
+              </label>
+              <span id="selectedBarberLabel" class="text-xs font-semibold text-slate-400">Nevybraný</span>
+            </div>
+            <div id="barberGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3"></div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-[#231F20] text-white inline-flex items-center justify-center text-xs font-bold">2</span>
+                Vyber produkt
+              </label>
+              <span id="selectedProductLabel" class="text-xs font-semibold text-slate-400">Nevybraný</span>
+            </div>
+            <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5"></div>
+          </div>
+
+          <div class="pt-2 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+            <div class="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2 mb-1">
+                  <span class="w-6 h-6 rounded-full bg-[#231F20] text-white inline-flex items-center justify-center text-xs font-bold">3</span>
+                  Počet kusov
+                </span>
+                <p id="posSummaryHint" class="text-xs font-medium text-slate-500">Vyber barbera a produkt</p>
+              </div>
+
+              <div class="flex items-center justify-between sm:justify-end gap-3">
+                <div class="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200">
+                  <button type="button" onclick="setQty(1)" id="quickQty1" class="px-3 py-1.5 rounded-md text-xs font-bold transition">1 ks</button>
+                  <button type="button" onclick="setQty(2)" id="quickQty2" class="px-3 py-1.5 rounded-md text-xs font-bold transition">2 ks</button>
+                  <button type="button" onclick="setQty(3)" id="quickQty3" class="px-3 py-1.5 rounded-md text-xs font-bold transition">3 ks</button>
+                </div>
+
+                <div class="flex items-center gap-2.5">
+                  <button type="button" onclick="changeQty(-1)" class="w-11 h-11 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-xl font-bold text-slate-800 flex items-center justify-center transition">−</button>
+                  <div class="min-w-[50px] text-center">
+                    <div id="qtyDisplay" class="text-2xl font-black text-slate-900 tabular-nums">1</div>
+                    <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">ks</div>
+                  </div>
+                  <button type="button" onclick="changeQty(1)" class="w-11 h-11 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-xl font-bold text-slate-800 flex items-center justify-center transition">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 flex">
+              <button id="submitSaleBtn" type="button" onclick="recordSale()" class="w-full min-h-[72px] rounded-xl bg-[#0097B2] hover:bg-[#007A91] disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-lg sm:text-xl tracking-wide uppercase shadow-sm flex items-center justify-center gap-3 px-6 py-4 transition-all duration-150">
+                <span id="submitSaleBtnText">ZAPÍSAŤ PREDAJ</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- POSLEDNÉ PREDAJE (BEZ CIEN A PERCENT) -->
+      <div class="bg-white border border-[#231F20]/15 rounded-2xl p-5 sm:p-6 shadow-md">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Posledné zapísané predaje</h3>
+            <p class="text-xs text-slate-500">Synchronizované naprieč pokladňou, desktopom aj iPadom.</p>
+          </div>
+          <span id="recentCountBadge" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-auto">
+            0 záznamov
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+                <th class="py-3 px-3">Čas zápisu</th>
+                <th class="py-3 px-3">Barber</th>
+                <th class="py-3 px-3">Produkt</th>
+                <th class="py-3 px-3 text-right">Počet</th>
+              </tr>
+            </thead>
+            <tbody id="recentSalesBody" class="divide-y divide-slate-100 text-sm"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- MANAŽÉRSKY PREHĽAD & PROVÍZIE -->
+    <section id="adminView" class="hidden space-y-6">
+      <div class="bg-white border border-[#231F20]/15 rounded-2xl p-5 sm:p-6 shadow-md flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Režim majiteľa – Ceny, zisky a provízie</h2>
+            <span class="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded-md bg-[#231F20] text-white">Majiteľ</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-600 mt-1">
+            Rezerva poštovné/nákupy: <strong id="bannerShippingInfo" class="text-slate-900">5 %</strong> • Provízia barbera: <strong id="bannerCommissionInfo" class="text-[#007A91]">100 % (Krištof 50 %)</strong>
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <select id="monthFilter" onchange="renderAdmin()" class="bg-white border border-slate-300 text-slate-900 text-sm font-bold rounded-xl px-4 py-2"></select>
+          <button type="button" onclick="exportToCSV()" class="px-4 py-2 rounded-xl bg-[#0097B2] hover:bg-[#007A91] text-white font-bold text-xs sm:text-sm">Export do CSV</button>
+          <button type="button" onclick="lockAdminAndReturn()" class="px-3.5 py-2 rounded-xl bg-[#231F20] hover:bg-slate-800 text-white font-bold text-xs sm:text-sm">Zamknúť prehľad</button>
+          <button type="button" onclick="requestClearAll()" class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs sm:text-sm">Vymazať predaje</button>
+        </div>
+      </div>
+
+      <div id="resetConfirmBar" class="hidden bg-rose-50 border border-rose-300 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <span class="text-sm font-bold text-rose-900">Naozaj chceš vymazať všetky zapísané predaje z Google Tabuľky?</span>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="cancelClearAll()" class="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs font-bold">Zrušiť</button>
+          <button type="button" onclick="confirmClearAll()" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs font-bold">Áno, vymazať</button>
+        </div>
+      </div>
+
+      <!-- KPI KARTY -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tržby spolu (€)</div>
+          <div id="kpiRevenue" class="mt-2 text-2xl font-black text-slate-900 tabular-nums">0,00 €</div>
+          <div id="kpiUnitsText" class="mt-1 text-xs font-medium text-slate-500">0 predaných kusov</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Hrubý zisk (€)</div>
+          <div id="kpiGrossProfit" class="mt-2 text-2xl font-black text-[#007A91] tabular-nums">0,00 €</div>
+          <div class="mt-1 text-xs font-medium text-slate-500">Predaj − Nákup</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Rezerva poštovné/nákupy</div>
+          <div id="kpiShippingReserve" class="mt-2 text-2xl font-black text-amber-600 tabular-nums">0,00 €</div>
+          <div id="kpiShippingSub" class="mt-1 text-xs font-medium text-slate-500">5 % z hrubého zisku</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Provízie barberom spolu</div>
+          <div id="kpiCommissions" class="mt-2 text-2xl font-black text-slate-900 tabular-nums">0,00 €</div>
+          <div class="mt-1 text-xs font-medium text-slate-500">Podľa individuálneho % barbera</div>
+        </div>
+        <div class="bg-[#231F20] border border-[#231F20] rounded-2xl p-5 shadow-xs text-white">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Čistý zisk barbershopu</div>
+          <div id="kpiShopNetProfit" class="mt-2 text-2xl font-black text-emerald-400 tabular-nums">0,00 €</div>
+          <div class="mt-1 text-xs font-medium text-slate-400">Po províziách a rezerve</div>
+        </div>
+      </div>
+
+      <!-- TABUĽKA PROVÍZIÍ -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Prehľad provízií podľa barbera</h3>
+          <span id="payoutPeriodBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">Obdobie</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+                <th class="py-3.5 px-4">Barber</th>
+                <th class="py-3.5 px-3 text-center">Predané ks</th>
+                <th class="py-3.5 px-3 text-right">Tržba</th>
+                <th class="py-3.5 px-3 text-right">Hrubý zisk</th>
+                <th class="py-3.5 px-3 text-right">Rezerva</th>
+                <th class="py-3.5 px-3 text-right">Základ</th>
+                <th class="py-3.5 px-4 text-right text-emerald-700">Provízia na výplatu</th>
+              </tr>
+            </thead>
+            <tbody id="payoutTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            <tfoot id="payoutTableFoot" class="border-t-2 border-slate-300 bg-slate-50 font-extrabold text-sm"></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- NASTAVENIA PERCENT & BARBERI -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Nastavenie zrážok a hesla</h3>
+            <button type="button" onclick="saveConfigToCloud()" class="px-3.5 py-1.5 rounded-lg bg-[#0097B2] hover:bg-[#007A91] text-white font-bold text-xs">Uložiť do cloudu</button>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <label class="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-2">% zrážka na poštovné / ďalšie nákupy (z hrubého zisku)</label>
+            <input id="shippingRateInput" type="number" min="0" max="100" step="0.5" value="5" onchange="state.shippingRate = clampRate(this.value); renderAdmin();" class="w-28 bg-white border border-slate-300 rounded-lg px-3 py-2 text-right font-extrabold text-slate-900" />
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <label class="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-2">Predvolené % zo zisku pre nových barberov</label>
+            <div class="flex items-center gap-3">
+              <input id="commissionRateInput" type="number" min="0" max="100" step="1" value="100" onchange="state.commissionRate = clampRate(this.value); renderAdmin();" class="w-28 bg-white border border-slate-300 rounded-lg px-3 py-2 text-right font-extrabold text-emerald-700" />
+              <span class="text-xs text-slate-500">Individuálne % nastavuješ vpravo pri každom barberovi</span>
+            </div>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <label class="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-2">Heslo / PIN pre vstup do manažérskeho prehľadu</label>
+            <div class="flex items-center gap-2.5">
+              <input id="adminPinInput" type="text" maxlength="20" value="2026" onchange="state.adminPassword = (this.value || '').trim() || '2026';" class="w-40 bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono font-bold text-slate-900" />
+              <span class="text-xs text-slate-500">Predvolené heslo: <strong class="text-slate-900">2026</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Správa barberov & individuálne %</h3>
+            <button type="button" onclick="saveConfigToCloud()" class="px-3 py-1.5 rounded-lg bg-[#0097B2] hover:bg-[#007A91] text-white font-bold text-xs">Uložiť</button>
+          </div>
+          <form onsubmit="addBarber(event)" class="flex items-center gap-2.5 mb-4">
+            <input id="newBarberNameInput" type="text" placeholder="Meno nového barbera..." class="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900" />
+            <button type="submit" class="px-4 py-2 rounded-xl bg-[#231F20] hover:bg-slate-800 text-white font-bold text-sm">+ Pridať</button>
+          </form>
+          <div id="barbersManagerList" class="space-y-2 max-h-[240px] overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <!-- KATALÓG PRODUKTOV -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Katalóg produktov – Nákupné a predajné ceny</h3>
+            <p class="text-xs text-slate-500">Uprav nákupnú alebo predajnú cenu priamo v tabuľke a ulož zmeny.</p>
+          </div>
+          <button type="button" onclick="saveConfigToCloud()" class="px-4 py-2 rounded-lg bg-[#0097B2] hover:bg-[#007A91] text-white font-bold text-xs">Uložiť zmeny</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+                <th class="py-3 px-4">#</th>
+                <th class="py-3 px-4">Kategória</th>
+                <th class="py-3 px-4">Názov produktu</th>
+                <th class="py-3 px-4 text-right">Nákup (€)</th>
+                <th class="py-3 px-4 text-right">Predaj (€)</th>
+                <th class="py-3 px-4 text-right">Zisk / ks</th>
+              </tr>
+            </thead>
+            <tbody id="catalogTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DETAILNÝ ZOZNAM PREDAJOV -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 mb-4">Detailný zoznam predajov</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+                <th class="py-3 px-3">Dátum a čas</th>
+                <th class="py-3 px-3">Barber</th>
+                <th class="py-3 px-3">Produkt</th>
+                <th class="py-3 px-3 text-center">Ks</th>
+                <th class="py-3 px-3 text-right">Tržba</th>
+                <th class="py-3 px-3 text-right">Zisk</th>
+                <th class="py-3 px-3 text-right">Rezerva</th>
+                <th class="py-3 px-3 text-right text-emerald-700">Provízia</th>
+                <th class="py-3 px-3 text-right">Akcia</th>
+              </tr>
+            </thead>
+            <tbody id="adminSalesBody" class="divide-y divide-slate-100 text-xs sm:text-sm"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-[#231F20]/15 bg-white py-3.5 px-4 text-center text-xs font-medium text-[#231F20]/75">
+    Vajb Space • Hlavná 20, 040 01 Košice
+  </footer>
+
+  <!-- TOAST -->
+  <div id="toastNotification" class="fixed bottom-5 right-5 left-5 sm:left-auto sm:w-[380px] z-50 toast-exit transition-all duration-300">
+    <div class="bg-[#231F20] border border-slate-700 rounded-xl p-4 shadow-xl">
+      <div id="toastTitle" class="text-sm font-bold text-white">Hotovo</div>
+      <div id="toastBody" class="text-xs text-slate-300 mt-0.5"></div>
+    </div>
+  </div>
+
+  <!-- MODAL PRE HESLO MAJITEĽA -->
+  <div id="pinModal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+      <div>
+        <h3 class="text-lg font-extrabold text-slate-900">Zamknutá sekcia majiteľa</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Zadaj heslo pre zobrazenie cien a provízií</p>
+      </div>
+
+      <form onsubmit="submitAdminPin(event)" class="space-y-3">
+        <input id="pinModalInput" type="password" autocomplete="off" placeholder="Zadaj heslo..." class="w-full bg-slate-50 border border-slate-300 focus:border-[#0097B2] focus:outline-none rounded-xl px-4 py-2.5 text-center text-lg font-mono font-bold tracking-widest text-slate-900" />
+        <p id="pinModalError" class="hidden text-xs font-semibold text-rose-600 text-center">Nesprávne heslo. Skús znova.</p>
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" onclick="closePinModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm">Zrušiť</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-[#0097B2] hover:bg-[#007A91] text-white font-bold text-sm">Odomknúť</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
