@@ -102,7 +102,6 @@ async function apiRequest(payload = null) {
   });
   return { ok: true, localApplied: true };
 }
-}
 
 async function syncFromCloud(manual = false) {
   if (state.isSyncing) return;
