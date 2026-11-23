@@ -416,15 +416,26 @@
     ];
 
     const DEFAULT_PRODUCTS = [
-      { id: 'tailors_salt_spray', name: 'Tailor´s Salt Spray 200 ml', category: 'Sprej', badge: '200 ml', accent: 'teal', buyPrice: 10.91, sellPrice: 16.00 },
-      { id: 'tailors_clay', name: 'Tailor´s Clay 100 ml', category: 'Clay', badge: '100 ml', accent: 'slate', buyPrice: 11.76, sellPrice: 17.00 },
-      { id: 'murray_ny_water', name: 'Florida Water NY 221 ml', category: 'Kolínska', badge: '221 ml', accent: 'teal', buyPrice: 7.13, sellPrice: 16.00 },
-      { id: 'murray_peru_water', name: 'Florida Water Peru 270 ml', category: 'Kolínska', badge: '270 ml', accent: 'amber', buyPrice: 11.07, sellPrice: 17.00 },
-      { id: 'immortal_nyc_venom', name: 'Immortal NYC Venom 150 ml', category: 'Styling', badge: '150 ml', accent: 'slate', buyPrice: 4.00, sellPrice: 8.00 },
-      { id: 'reuzel_clay_matte', name: 'Reuzel Clay Matte Pomade 95 g', category: 'Pomáda', badge: '95 g', accent: 'teal', buyPrice: 12.30, sellPrice: 18.00 },
-      { id: 'reuzel_extreme_hold', name: 'Reuzel Extreme Hold Matte Pomade 95 g', category: 'Pomáda', badge: '95 g', accent: 'slate', buyPrice: 14.76, sellPrice: 18.00 },
-      { id: 'reuzel_surf_cream', name: 'Reuzel Surf Cream 95 g', category: 'Krém', badge: '95 g', accent: 'sky', buyPrice: 14.76, sellPrice: 20.00 }
+      { id: 'tailors_salt_spray', name: 'Tailor´s Salt Spray 200 ml', category: 'Sprej', badge: '200 ml', accent: 'teal', image: 'images/tailors-seasalt.png', buyPrice: 10.91, sellPrice: 16.00 },
+      { id: 'tailors_clay', name: 'Tailor´s Clay 100 ml', category: 'Clay', badge: '100 ml', accent: 'slate', image: 'images/tailors-clay.png', buyPrice: 11.76, sellPrice: 17.00 },
+      { id: 'murray_ny_water', name: 'Florida Water NY 221 ml', category: 'Kolínska', badge: '221 ml', accent: 'teal', image: 'images/forida-newyork.png', buyPrice: 7.13, sellPrice: 16.00 },
+      { id: 'murray_peru_water', name: 'Florida Water Peru 270 ml', category: 'Kolínska', badge: '270 ml', accent: 'amber', image: 'images/forida-peru.png', buyPrice: 11.07, sellPrice: 17.00 },
+      { id: 'immortal_nyc_venom', name: 'Immortal NYC Venom 150 ml', category: 'Styling', badge: '150 ml', accent: 'slate', image: 'images/immortal-venom.png', buyPrice: 4.00, sellPrice: 8.00 },
+      { id: 'reuzel_clay_matte', name: 'Reuzel Clay Matte Pomade 95 g', category: 'Pomáda', badge: '95 g', accent: 'teal', image: 'images/reuzel-claymatte.png', buyPrice: 12.30, sellPrice: 18.00 },
+      { id: 'reuzel_extreme_hold', name: 'Reuzel Extreme Hold Matte Pomade 95 g', category: 'Pomáda', badge: '95 g', accent: 'slate', image: 'images/reuzel-claymatte-extreme.png', buyPrice: 14.76, sellPrice: 18.00 },
+      { id: 'reuzel_surf_cream', name: 'Reuzel Surf Cream 95 g', category: 'Krém', badge: '95 g', accent: 'sky', image: 'images/reuzel-surfscream.png', buyPrice: 14.76, sellPrice: 20.00 }
     ];
+
+    const PRODUCT_IMAGES_BY_ID = {
+      tailors_salt_spray: 'images/tailors-seasalt.png',
+      tailors_clay: 'images/tailors-clay.png',
+      murray_ny_water: 'images/forida-newyork.png',
+      murray_peru_water: 'images/forida-peru.png',
+      immortal_nyc_venom: 'images/immortal-venom.png',
+      reuzel_clay_matte: 'images/reuzel-claymatte.png',
+      reuzel_extreme_hold: 'images/reuzel-claymatte-extreme.png',
+      reuzel_surf_cream: 'images/reuzel-surfscream.png'
+    };
 
     const ACCENT_STYLES = {
       teal: { pill: 'bg-[#0097B2]/10 text-[#007A91] border-[#0097B2]/25', bar: 'bg-[#0097B2]' },
@@ -567,13 +578,14 @@
         const metaMap = {};
         DEFAULT_PRODUCTS.forEach(dp => { metaMap[dp.id] = dp; });
         state.products = res.products.map(p => {
-          const meta = metaMap[p.id] || { category: 'Produkt', badge: '', accent: 'teal' };
+          const meta = metaMap[p.id] || { category: 'Produkt', badge: '', accent: 'teal', image: PRODUCT_IMAGES_BY_ID[p.id] || '' };
           return {
             id: String(p.id),
             name: String(p.name),
             category: meta.category,
             badge: meta.badge,
             accent: meta.accent,
+            image: p.image || meta.image || PRODUCT_IMAGES_BY_ID[p.id] || '',
             buyPrice: roundMoney(p.buyPrice),
             sellPrice: roundMoney(p.sellPrice)
           };
@@ -836,15 +848,28 @@
       productGrid.innerHTML = state.products.map(p => {
         const isSelected = p.id === state.selectedProductId;
         const acc = ACCENT_STYLES[p.accent] || ACCENT_STYLES.teal;
+        const imgSrc = p.image || PRODUCT_IMAGES_BY_ID[p.id] || '';
         return `
-          <button type="button" onclick="selectProduct('${escapeHtml(p.id)}')" class="relative overflow-hidden flex flex-col justify-between text-left p-4 rounded-xl border-2 transition-all duration-150 min-h-[116px] ${isSelected ? 'bg-[#0097B2]/10 border-[#0097B2] shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}">
+          <button type="button" onclick="selectProduct('${escapeHtml(p.id)}')" class="group relative overflow-hidden flex flex-col justify-between text-left p-3.5 sm:p-4 rounded-xl border-2 transition-all duration-150 min-h-[195px] ${isSelected ? 'bg-[#0097B2]/10 border-[#0097B2] shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}">
             <div class="absolute top-0 left-0 right-0 h-1 ${isSelected ? 'bg-[#0097B2]' : acc.bar}"></div>
             <div class="flex items-center justify-between gap-2 w-full mb-2 pt-0.5">
               <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${acc.pill}">${escapeHtml(p.category || 'Produkt')}</span>
               ${p.badge ? `<span class="text-[11px] font-semibold text-slate-400">${escapeHtml(p.badge)}</span>` : ''}
             </div>
-            <div class="font-bold text-sm sm:text-[15px] text-slate-900 leading-snug">${escapeHtml(p.name)}</div>
-            <div class="mt-2.5 text-[11px] font-semibold ${isSelected ? 'text-[#007A91]' : 'text-slate-400'}">${isSelected ? '✓ Vybrané' : 'Vybrať'}</div>
+            ${imgSrc ? `
+              <div class="w-full h-24 sm:h-28 my-1.5 flex items-center justify-center">
+                <img
+                  src="${escapeHtml(imgSrc)}"
+                  alt="${escapeHtml(p.name)}"
+                  class="max-h-full max-w-full object-contain transition-transform duration-200 group-hover:scale-105"
+                  onerror="this.parentElement.style.display='none'"
+                />
+              </div>
+            ` : ''}
+            <div class="w-full pt-1">
+              <div class="font-bold text-sm sm:text-[15px] text-slate-900 leading-snug">${escapeHtml(p.name)}</div>
+              <div class="mt-1.5 text-[11px] font-semibold ${isSelected ? 'text-[#007A91]' : 'text-slate-400'}">${isSelected ? '✓ Vybrané' : 'Vybrať'}</div>
+            </div>
           </button>
         `;
       }).join('');
