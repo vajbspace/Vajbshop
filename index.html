@@ -407,13 +407,63 @@
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzufUxXgXXlXjcfdEstDOovR4jiLLUdTxVPGpLYxjwpZtL0XABjgXtmvhJ2ZGVIPs3C/exec';
     const LOCAL_FALLBACK_KEY = 'vajb_space_github_cache_v1';
 
+    const BARBER_THEME_BY_ID = {
+      frantisek: {
+        badge: 'bg-[#E2C6F7] text-[#581C87]',
+        card: 'bg-[#F5EBFD] border-[#C084FC] hover:bg-[#EBD8FA]',
+        selected: 'bg-[#E2C6F7] border-[#7E22CE] ring-2 ring-[#7E22CE]/30 shadow-xs',
+        pill: 'bg-[#F3E8FF] text-[#6B21A8] border-[#D8B4FE]'
+      },
+      dominik: {
+        badge: 'bg-[#BAE6FD] text-[#075985]',
+        card: 'bg-[#F0F9FF] border-[#7DD3FC] hover:bg-[#E0F2FE]',
+        selected: 'bg-[#BAE6FD] border-[#0284C7] ring-2 ring-[#0284C7]/30 shadow-xs',
+        pill: 'bg-[#E0F2FE] text-[#0369A1] border-[#7DD3FC]'
+      },
+      juraj: {
+        badge: 'bg-[#1E3A8A] text-white',
+        card: 'bg-[#EFF6FF] border-[#93C5FD] hover:bg-[#DBEAFE]',
+        selected: 'bg-[#DBEAFE] border-[#1E3A8A] ring-2 ring-[#1E3A8A]/30 shadow-xs',
+        pill: 'bg-[#1E3A8A] text-white border-[#1E3A8A]'
+      },
+      radovan: {
+        badge: 'bg-[#FDE68A] text-[#78350F]',
+        card: 'bg-[#FEFCE8] border-[#FCD34D] hover:bg-[#FEF3C7]',
+        selected: 'bg-[#FDE68A] border-[#D97706] ring-2 ring-[#D97706]/30 shadow-xs',
+        pill: 'bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]'
+      },
+      kristof: {
+        badge: 'bg-[#FECACA] text-[#7F1D1D]',
+        card: 'bg-[#FEF2F2] border-[#FCA5A5] hover:bg-[#FEE2E2]',
+        selected: 'bg-[#FECACA] border-[#DC2626] ring-2 ring-[#DC2626]/30 shadow-xs',
+        pill: 'bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]'
+      }
+    };
+
     const DEFAULT_BARBERS = [
-      { id: 'dominik', name: 'Dominik', color: 'bg-[#0097B2] text-white', commissionRate: 100 },
-      { id: 'radovan', name: 'Radovan', color: 'bg-[#231F20] text-white', commissionRate: 100 },
-      { id: 'frantisek', name: 'František', color: 'bg-[#007A91] text-white', commissionRate: 100 },
-      { id: 'juraj', name: 'Juraj', color: 'bg-[#FF8C87] text-[#231F20]', commissionRate: 100 },
-      { id: 'kristof', name: 'Krištof', color: 'bg-[#FFB6B3] text-[#231F20]', commissionRate: 50 }
+      { id: 'frantisek', name: 'František', color: BARBER_THEME_BY_ID.frantisek.badge, commissionRate: 100 },
+      { id: 'dominik', name: 'Dominik', color: BARBER_THEME_BY_ID.dominik.badge, commissionRate: 100 },
+      { id: 'juraj', name: 'Juraj', color: BARBER_THEME_BY_ID.juraj.badge, commissionRate: 100 },
+      { id: 'radovan', name: 'Radovan', color: BARBER_THEME_BY_ID.radovan.badge, commissionRate: 100 },
+      { id: 'kristof', name: 'Krištof', color: BARBER_THEME_BY_ID.kristof.badge, commissionRate: 50 }
     ];
+
+    function getBarberTheme(barberId, barberName) {
+      const idKey = String(barberId || '').trim().toLowerCase();
+      if (BARBER_THEME_BY_ID[idKey]) return BARBER_THEME_BY_ID[idKey];
+      const nameKey = String(barberName || '').trim().toLowerCase();
+      if (nameKey.startsWith('fran') || nameKey.startsWith('fero')) return BARBER_THEME_BY_ID.frantisek;
+      if (nameKey.startsWith('dom')) return BARBER_THEME_BY_ID.dominik;
+      if (nameKey.startsWith('jur')) return BARBER_THEME_BY_ID.juraj;
+      if (nameKey.startsWith('rad')) return BARBER_THEME_BY_ID.radovan;
+      if (nameKey.startsWith('kri')) return BARBER_THEME_BY_ID.kristof;
+      return {
+        badge: 'bg-[#0097B2] text-white',
+        card: 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+        selected: 'bg-[#0097B2]/10 border-[#0097B2] shadow-xs',
+        pill: 'bg-slate-100 text-slate-800 border-slate-200'
+      };
+    }
 
     const DEFAULT_PRODUCTS = [
       { id: 'tailors_salt_spray', name: 'Tailor´s Salt Spray 200 ml', category: 'Sprej', badge: '200 ml', accent: 'teal', image: 'images/tailors-seasalt.png', buyPrice: 10.91, sellPrice: 16.00 },
@@ -445,11 +495,11 @@
     };
 
     const BARBER_AVATAR_STYLES = [
-      'bg-[#0097B2] text-white',
-      'bg-[#231F20] text-white',
-      'bg-[#007A91] text-white',
-      'bg-[#FF8C87] text-[#231F20]',
-      'bg-[#FFB6B3] text-[#231F20]'
+      BARBER_THEME_BY_ID.frantisek.badge,
+      BARBER_THEME_BY_ID.dominik.badge,
+      BARBER_THEME_BY_ID.juraj.badge,
+      BARBER_THEME_BY_ID.radovan.badge,
+      BARBER_THEME_BY_ID.kristof.badge
     ];
 
     let state = {
@@ -565,10 +615,11 @@
         state.barbers = res.barbers.map((b, idx) => {
           const isKristof = String(b.id).toLowerCase() === 'kristof' || String(b.name || '').trim().toLowerCase().startsWith('kri');
           const rate = (typeof b.commissionRate === 'number' && !isNaN(b.commissionRate)) ? clampRate(b.commissionRate) : (isKristof ? 50 : 100);
+          const theme = getBarberTheme(b.id, b.name);
           return {
             id: String(b.id),
             name: String(b.name),
-            color: b.color || BARBER_AVATAR_STYLES[idx % BARBER_AVATAR_STYLES.length],
+            color: theme.badge || b.color || BARBER_AVATAR_STYLES[idx % BARBER_AVATAR_STYLES.length],
             commissionRate: rate
           };
         });
@@ -721,7 +772,7 @@
         posView.classList.add('hidden');
         adminView.classList.remove('hidden');
         tabAdminBtn.className = 'flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-bold transition-all duration-150 bg-[#0097B2] text-white shadow-xs';
-        tabPosBtn.className = 'flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-bold transition-all duration-150 text-[#231F20]/75 hover:text-[#231F20]';
+        tabPosBtn.className = 'flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:flex-none px-4 sm:px-5 py-2 rounded-lg text-sm font-bold transition-all duration-150 text-[#231F20]/75 hover:text-[#231F20]';
         renderAdmin();
         syncFromCloud(false);
       }
@@ -833,13 +884,14 @@
       barberGrid.innerHTML = state.barbers.map((b, idx) => {
         const isSelected = b.id === state.selectedBarberId;
         const initials = b.name.slice(0, 2).toUpperCase();
-        const badgeStyle = b.color || BARBER_AVATAR_STYLES[idx % BARBER_AVATAR_STYLES.length];
+        const theme = getBarberTheme(b.id, b.name);
+        const badgeStyle = theme.badge || b.color || BARBER_AVATAR_STYLES[idx % BARBER_AVATAR_STYLES.length];
         return `
-          <button type="button" onclick="selectBarber('${escapeHtml(b.id)}')" class="flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-150 ${isSelected ? 'bg-[#0097B2]/10 border-[#0097B2] shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}">
-            <div class="w-9 h-9 rounded-lg ${badgeStyle} font-extrabold text-xs flex items-center justify-center shrink-0">${escapeHtml(initials)}</div>
+          <button type="button" onclick="selectBarber('${escapeHtml(b.id)}')" class="flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-150 ${isSelected ? theme.selected : theme.card}">
+            <div class="w-9 h-9 rounded-lg ${badgeStyle} font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs">${escapeHtml(initials)}</div>
             <div class="min-w-0 flex-1">
               <div class="font-bold text-sm sm:text-base text-slate-900 truncate">${escapeHtml(b.name)}</div>
-              <div class="text-[11px] font-medium ${isSelected ? 'text-[#007A91]' : 'text-slate-400'}">${isSelected ? 'Vybraný' : 'Vybrať'}</div>
+              <div class="text-[11px] font-semibold ${isSelected ? 'text-slate-900' : 'text-slate-600'}">${isSelected ? '✓ Vybraný' : 'Vybrať'}</div>
             </div>
           </button>
         `;
@@ -896,14 +948,19 @@
       document.getElementById('recentCountBadge').textContent = `${state.sales.length} záznamov`;
       document.getElementById('recentSalesBody').innerHTML = recent.length === 0
         ? `<tr><td colspan="4" class="py-8 text-center text-slate-400 text-sm">Zatiaľ nie sú zapísané žiadne predaje.</td></tr>`
-        : recent.map(s => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-3 px-3 text-xs text-slate-500 whitespace-nowrap font-mono">${escapeHtml(formatDateTime(s.timestamp))}</td>
-            <td class="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">${escapeHtml(s.barberName)}</td>
-            <td class="py-3 px-3 font-medium text-slate-700">${escapeHtml(s.productName)}</td>
-            <td class="py-3 px-3 text-right font-extrabold text-slate-900 whitespace-nowrap">${s.qty} ks</td>
-          </tr>
-        `).join('');
+        : recent.map(s => {
+          const theme = getBarberTheme(s.barberId, s.barberName);
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3 px-3 text-xs text-slate-500 whitespace-nowrap font-mono">${escapeHtml(formatDateTime(s.timestamp))}</td>
+              <td class="py-3 px-3 whitespace-nowrap">
+                <span class="px-2.5 py-1 rounded-lg text-xs font-bold border ${theme.pill}">${escapeHtml(s.barberName)}</span>
+              </td>
+              <td class="py-3 px-3 font-medium text-slate-700">${escapeHtml(s.productName)}</td>
+              <td class="py-3 px-3 text-right font-extrabold text-slate-900 whitespace-nowrap">${s.qty} ks</td>
+            </tr>
+          `;
+        }).join('');
     }
 
     function renderAdmin() {
@@ -1012,6 +1069,7 @@
       document.getElementById('kpiShopNetProfit').textContent = formatEur(totalShopNetProfit);
 
       document.getElementById('payoutTableBody').innerHTML = Object.values(barberMap).map(b => {
+        const theme = getBarberTheme(b.id, b.name);
         let actionCell = '';
         if (b.commission <= 0) {
           actionCell = `<span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-400">0,00 €</span>`;
@@ -1033,7 +1091,7 @@
         return `
         <tr class="${fullyPaidRow ? 'bg-emerald-50/35' : ''} hover:bg-slate-50 transition">
           <td class="py-3.5 px-4 font-bold text-slate-900">
-            <span>${escapeHtml(b.name)}</span>
+            <span class="px-2.5 py-1 rounded-lg text-xs font-bold border ${theme.pill}">${escapeHtml(b.name)}</span>
             <span class="ml-2 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">${b.rate} %</span>
           </td>
           <td class="py-3.5 px-3 text-center font-semibold text-slate-700">${b.units} ks</td>
@@ -1060,9 +1118,11 @@
         </tr>
       `;
 
-      document.getElementById('barbersManagerList').innerHTML = state.barbers.map((b, idx) => `
+      document.getElementById('barbersManagerList').innerHTML = state.barbers.map((b, idx) => {
+        const theme = getBarberTheme(b.id, b.name);
+        return `
         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
-          <span class="w-7 h-7 rounded-lg bg-[#231F20] text-white font-bold text-xs flex items-center justify-center shrink-0">${idx + 1}</span>
+          <span class="w-7 h-7 rounded-lg ${theme.badge} font-bold text-xs flex items-center justify-center shrink-0">${idx + 1}</span>
           <input type="text" value="${escapeHtml(b.name)}" onchange="renameBarber('${escapeHtml(b.id)}', this.value)" class="flex-1 min-w-0 bg-white text-sm font-semibold text-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-300" />
           <div class="flex items-center bg-white border border-slate-300 rounded-lg px-2 py-1 shrink-0">
             <input type="number" min="0" max="100" step="1" value="${getBarberCommissionRate(b.id, b.name)}" onchange="updateBarberRate('${escapeHtml(b.id)}', this.value)" class="w-12 text-right text-sm font-bold text-emerald-700 focus:outline-none tabular-nums" />
@@ -1070,7 +1130,8 @@
           </div>
           ${state.barbers.length > 1 ? `<button type="button" onclick="removeBarber('${escapeHtml(b.id)}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold">Zmazať</button>` : ''}
         </div>
-      `).join('');
+      `;
+      }).join('');
 
       document.getElementById('catalogTableBody').innerHTML = state.products.map((p, idx) => {
         const unitProfit = roundMoney(p.sellPrice - p.buyPrice);
@@ -1090,11 +1151,12 @@
         ? `<tr><td colspan="10" class="py-8 text-center text-slate-400 text-sm">V tomto období nie sú evidované žiadne predaje.</td></tr>`
         : filteredSales.map(s => {
           const fin = calculateSaleFinancials(s);
+          const theme = getBarberTheme(s.barberId, s.barberName);
           const isSalePaid = Boolean(s.paidAt && String(s.paidAt).trim());
           return `
             <tr class="${isSalePaid ? 'bg-emerald-50/25' : ''} hover:bg-slate-50 transition">
               <td class="py-3 px-3 text-xs text-slate-500 whitespace-nowrap font-mono">${escapeHtml(formatDateTime(s.timestamp))}</td>
-              <td class="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">${escapeHtml(s.barberName)}</td>
+              <td class="py-3 px-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded-md text-xs font-bold border ${theme.pill}">${escapeHtml(s.barberName)}</span></td>
               <td class="py-3 px-3 font-medium text-slate-700">${escapeHtml(s.productName)}</td>
               <td class="py-3 px-3 text-center font-bold text-slate-900">${s.qty}</td>
               <td class="py-3 px-3 text-right text-slate-700 tabular-nums whitespace-nowrap">${formatEur(fin.revenue)}</td>
