@@ -245,9 +245,9 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
             <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Prehľad provízií podľa barbera</h3>
-            <p class="text-xs text-slate-500">Vyber konkrétny mesiac pre výplatu provízií alebo zobraz všetky obdobia.</p>
+            <p class="text-xs text-slate-500">Vyber obdobie a klikni na <strong>Vyplatiť</strong> pri konkrétnom barberovi (podporuje týždenné aj mesačné výplaty).</p>
           </div>
-          <div class="flex items-center gap-2 self-start sm:self-auto">
+          <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <select id="payoutMonthFilter" onchange="onAdminMonthChange(this.value)" class="bg-slate-50 border border-slate-300 text-slate-900 text-xs sm:text-sm font-bold rounded-xl px-3.5 py-2 focus:border-[#0097B2] focus:outline-none"></select>
             <span id="payoutPeriodBadge" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#0097B2]/10 text-[#007A91] border border-[#0097B2]/25 whitespace-nowrap">Obdobie</span>
           </div>
@@ -261,8 +261,9 @@
                 <th class="py-3.5 px-3 text-right">Tržba</th>
                 <th class="py-3.5 px-3 text-right">Hrubý zisk</th>
                 <th class="py-3.5 px-3 text-right">Rezerva</th>
-                <th class="py-3.5 px-3 text-right">Základ</th>
-                <th class="py-3.5 px-4 text-right text-emerald-700">Provízia na výplatu</th>
+                <th class="py-3.5 px-3 text-right">Na výplatu</th>
+                <th class="py-3.5 px-4 text-right text-emerald-700">Provízia spolu</th>
+                <th class="py-3.5 px-4 text-center">Akcia / Výplata</th>
               </tr>
             </thead>
             <tbody id="payoutTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
@@ -352,6 +353,7 @@
                 <th class="py-3 px-3 text-right">Zisk</th>
                 <th class="py-3 px-3 text-right">Rezerva</th>
                 <th class="py-3 px-3 text-right text-emerald-700">Provízia</th>
+                <th class="py-3 px-3 text-center">Výplata</th>
                 <th class="py-3 px-3 text-right">Akcia</th>
               </tr>
             </thead>
@@ -442,6 +444,8 @@
       quantity: 1,
       shippingRate: 5,
       commissionRate: 100,
+      paidMonths: {},
+      localPaidOverrides: {},
       barbers: JSON.parse(JSON.stringify(DEFAULT_BARBERS)),
       products: JSON.parse(JSON.stringify(DEFAULT_PRODUCTS)),
       sales: [],
@@ -533,6 +537,12 @@
       if (typeof res.shippingRate === 'number' && !isNaN(res.shippingRate)) state.shippingRate = clampRate(res.shippingRate);
       if (typeof res.commissionRate === 'number' && !isNaN(res.commissionRate)) state.commissionRate = clampRate(res.commissionRate);
       if (typeof res.adminPassword === 'string' && res.adminPassword.trim()) state.adminPassword = res.adminPassword.trim();
+      if (res.paidMonths && typeof res.paidMonths === 'object' && !Array.isArray(res.paidMonths)) {
+        state.paidMonths = res.paidMonths;
+      }
+      if (res.localPaidOverrides && typeof res.localPaidOverrides === 'object') {
+        state.localPaidOverrides = res.localPaidOverrides;
+      }
 
       if (Array.isArray(res.barbers) && res.barbers.length > 0) {
         state.barbers = res.barbers.map((b, idx) => {
@@ -564,7 +574,20 @@
         });
       }
 
-      if (Array.isArray(res.sales)) state.sales = res.sales;
+      if (Array.isArray(res.sales)) {
+        state.sales = res.sales.map(s => {
+          const id = String(s.id);
+          const serverPaid = s.paidAt ? String(s.paidAt).trim() : '';
+          if (serverPaid) {
+            delete state.localPaidOverrides[id];
+            return { ...s, paidAt: serverPaid };
+          }
+          if (Object.prototype.hasOwnProperty.call(state.localPaidOverrides, id)) {
+            return { ...s, paidAt: state.localPaidOverrides[id] };
+          }
+          return { ...s, paidAt: '' };
+        });
+      }
       saveLocalFallback();
     }
 
@@ -581,6 +604,8 @@
           shippingRate: state.shippingRate,
           commissionRate: state.commissionRate,
           adminPassword: state.adminPassword,
+          paidMonths: state.paidMonths,
+          localPaidOverrides: state.localPaidOverrides,
           barbers: state.barbers,
           products: state.products,
           sales: state.sales
@@ -745,7 +770,8 @@
         buyPrice: product.buyPrice,
         sellPrice: product.sellPrice,
         revenue,
-        grossProfit
+        grossProfit,
+        paidAt: ''
       };
 
       const btn = document.getElementById('submitSaleBtn');
@@ -886,23 +912,51 @@
       document.getElementById('kpiShippingSub').textContent = `${state.shippingRate} % z hrubého zisku`;
       document.getElementById('payoutPeriodBadge').textContent = selectedMonth === 'ALL' ? 'Všetky obdobia' : `Mesiac ${selectedMonth}`;
 
-      let totalUnits = 0, totalRevenue = 0, totalGrossProfit = 0, totalShippingReserve = 0, totalCommissions = 0, totalShopNetProfit = 0;
+      let totalUnits = 0, totalRevenue = 0, totalGrossProfit = 0, totalShippingReserve = 0, totalCommissions = 0, totalUnpaidCommissions = 0, totalShopNetProfit = 0;
       const barberMap = {};
       state.barbers.forEach(b => {
-        barberMap[b.id] = { id: b.id, name: b.name, rate: getBarberCommissionRate(b.id, b.name), units: 0, revenue: 0, grossProfit: 0, shippingReserve: 0, baseAfterShipping: 0, commission: 0 };
+        barberMap[b.id] = {
+          id: b.id,
+          name: b.name,
+          rate: getBarberCommissionRate(b.id, b.name),
+          units: 0,
+          revenue: 0,
+          grossProfit: 0,
+          shippingReserve: 0,
+          baseAfterShipping: 0,
+          commission: 0,
+          unpaidCommission: 0,
+          paidCommission: 0,
+          lastPaidDate: ''
+        };
       });
 
       filteredSales.forEach(s => {
         const fin = calculateSaleFinancials(s);
+        const isPaid = Boolean(s.paidAt && String(s.paidAt).trim());
         totalUnits += s.qty;
         totalRevenue = roundMoney(totalRevenue + fin.revenue);
         totalGrossProfit = roundMoney(totalGrossProfit + fin.grossProfit);
         totalShippingReserve = roundMoney(totalShippingReserve + fin.shippingReserve);
         totalCommissions = roundMoney(totalCommissions + fin.commission);
+        if (!isPaid) totalUnpaidCommissions = roundMoney(totalUnpaidCommissions + fin.commission);
         totalShopNetProfit = roundMoney(totalShopNetProfit + fin.shopNetProfit);
 
         if (!barberMap[s.barberId]) {
-          barberMap[s.barberId] = { id: s.barberId, name: s.barberName, rate: fin.commissionRate, units: 0, revenue: 0, grossProfit: 0, shippingReserve: 0, baseAfterShipping: 0, commission: 0 };
+          barberMap[s.barberId] = {
+            id: s.barberId,
+            name: s.barberName,
+            rate: fin.commissionRate,
+            units: 0,
+            revenue: 0,
+            grossProfit: 0,
+            shippingReserve: 0,
+            baseAfterShipping: 0,
+            commission: 0,
+            unpaidCommission: 0,
+            paidCommission: 0,
+            lastPaidDate: ''
+          };
         }
         const entry = barberMap[s.barberId];
         entry.units += s.qty;
@@ -911,6 +965,12 @@
         entry.shippingReserve = roundMoney(entry.shippingReserve + fin.shippingReserve);
         entry.baseAfterShipping = roundMoney(entry.baseAfterShipping + fin.baseAfterShipping);
         entry.commission = roundMoney(entry.commission + fin.commission);
+        if (isPaid) {
+          entry.paidCommission = roundMoney(entry.paidCommission + fin.commission);
+          entry.lastPaidDate = String(s.paidAt).trim();
+        } else {
+          entry.unpaidCommission = roundMoney(entry.unpaidCommission + fin.commission);
+        }
       });
 
       document.getElementById('kpiRevenue').textContent = formatEur(totalRevenue);
@@ -920,8 +980,27 @@
       document.getElementById('kpiCommissions').textContent = formatEur(totalCommissions);
       document.getElementById('kpiShopNetProfit').textContent = formatEur(totalShopNetProfit);
 
-      document.getElementById('payoutTableBody').innerHTML = Object.values(barberMap).map(b => `
-        <tr class="hover:bg-slate-50 transition">
+      document.getElementById('payoutTableBody').innerHTML = Object.values(barberMap).map(b => {
+        let actionCell = '';
+        if (b.commission <= 0) {
+          actionCell = `<span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-400">0,00 €</span>`;
+        } else if (b.unpaidCommission > 0) {
+          actionCell = `
+            <button type="button" onclick="payBarberCommission('${escapeHtml(b.id)}')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition whitespace-nowrap">
+              Vyplatiť (${formatEur(b.unpaidCommission)})
+            </button>
+          `;
+        } else {
+          actionCell = `
+            <div class="inline-flex items-center gap-1.5">
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">✓ Vyplatené${b.lastPaidDate ? ' (' + escapeHtml(b.lastPaidDate) + ')' : ''}</span>
+              <button type="button" onclick="unpayBarberCommission('${escapeHtml(b.id)}')" title="Zrušiť označenie vyplatenia" class="px-2 py-1 rounded-lg text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition">↺</button>
+            </div>
+          `;
+        }
+        const fullyPaidRow = b.commission > 0 && b.unpaidCommission === 0;
+        return `
+        <tr class="${fullyPaidRow ? 'bg-emerald-50/35' : ''} hover:bg-slate-50 transition">
           <td class="py-3.5 px-4 font-bold text-slate-900">
             <span>${escapeHtml(b.name)}</span>
             <span class="ml-2 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">${b.rate} %</span>
@@ -930,10 +1009,12 @@
           <td class="py-3.5 px-3 text-right text-slate-700 tabular-nums">${formatEur(b.revenue)}</td>
           <td class="py-3.5 px-3 text-right text-[#007A91] font-semibold tabular-nums">${formatEur(b.grossProfit)}</td>
           <td class="py-3.5 px-3 text-right text-amber-600 font-medium tabular-nums">− ${formatEur(b.shippingReserve)}</td>
-          <td class="py-3.5 px-3 text-right text-slate-700 tabular-nums">${formatEur(b.baseAfterShipping)}</td>
+          <td class="py-3.5 px-3 text-right font-extrabold ${b.unpaidCommission > 0 ? 'text-amber-700' : 'text-emerald-700'} tabular-nums">${formatEur(b.unpaidCommission)}</td>
           <td class="py-3.5 px-4 text-right font-black text-emerald-700 text-base tabular-nums">${formatEur(b.commission)}</td>
+          <td class="py-3.5 px-4 text-center whitespace-nowrap">${actionCell}</td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
 
       document.getElementById('payoutTableFoot').innerHTML = `
         <tr>
@@ -942,8 +1023,9 @@
           <td class="py-3.5 px-3 text-right text-slate-900 tabular-nums">${formatEur(totalRevenue)}</td>
           <td class="py-3.5 px-3 text-right text-[#007A91] tabular-nums">${formatEur(totalGrossProfit)}</td>
           <td class="py-3.5 px-3 text-right text-amber-600 tabular-nums">− ${formatEur(totalShippingReserve)}</td>
-          <td class="py-3.5 px-3 text-right text-slate-900 tabular-nums">${formatEur(roundMoney(totalGrossProfit - totalShippingReserve))}</td>
+          <td class="py-3.5 px-3 text-right ${totalUnpaidCommissions > 0 ? 'text-amber-700' : 'text-emerald-700'} tabular-nums">${formatEur(totalUnpaidCommissions)}</td>
           <td class="py-3.5 px-4 text-right text-emerald-700 text-base tabular-nums">${formatEur(totalCommissions)}</td>
+          <td class="py-3.5 px-4 text-center text-xs font-bold ${totalUnpaidCommissions === 0 && totalCommissions > 0 ? 'text-emerald-700' : 'text-slate-500'}">${totalCommissions === 0 ? '—' : (totalUnpaidCommissions === 0 ? '✓ Všetko vyplatené' : 'Zostáva vyplatiť')}</td>
         </tr>
       `;
 
@@ -974,11 +1056,12 @@
       }).join('');
 
       document.getElementById('adminSalesBody').innerHTML = filteredSales.length === 0
-        ? `<tr><td colspan="9" class="py-8 text-center text-slate-400 text-sm">V tomto období nie sú evidované žiadne predaje.</td></tr>`
+        ? `<tr><td colspan="10" class="py-8 text-center text-slate-400 text-sm">V tomto období nie sú evidované žiadne predaje.</td></tr>`
         : filteredSales.map(s => {
           const fin = calculateSaleFinancials(s);
+          const isSalePaid = Boolean(s.paidAt && String(s.paidAt).trim());
           return `
-            <tr class="hover:bg-slate-50 transition">
+            <tr class="${isSalePaid ? 'bg-emerald-50/25' : ''} hover:bg-slate-50 transition">
               <td class="py-3 px-3 text-xs text-slate-500 whitespace-nowrap font-mono">${escapeHtml(formatDateTime(s.timestamp))}</td>
               <td class="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">${escapeHtml(s.barberName)}</td>
               <td class="py-3 px-3 font-medium text-slate-700">${escapeHtml(s.productName)}</td>
@@ -987,6 +1070,7 @@
               <td class="py-3 px-3 text-right text-[#007A91] font-semibold tabular-nums whitespace-nowrap">${formatEur(fin.grossProfit)}</td>
               <td class="py-3 px-3 text-right text-amber-600 tabular-nums whitespace-nowrap">${formatEur(fin.shippingReserve)}</td>
               <td class="py-3 px-3 text-right font-extrabold text-emerald-700 tabular-nums whitespace-nowrap">${formatEur(fin.commission)}</td>
+              <td class="py-3 px-3 text-center whitespace-nowrap">${isSalePaid ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">✓ ${escapeHtml(s.paidAt)}</span>` : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700">Nevyplatené</span>`}</td>
               <td class="py-3 px-3 text-right whitespace-nowrap"><button type="button" onclick="deleteSale('${escapeHtml(s.id)}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold">Zmazať</button></td>
             </tr>
           `;
@@ -999,6 +1083,84 @@
       if (monthFilter) monthFilter.value = val;
       if (payoutMonthFilter) payoutMonthFilter.value = val;
       renderAdmin();
+    }
+
+    async function payBarberCommission(barberId) {
+      const selectedMonth = document.getElementById('payoutMonthFilter').value || document.getElementById('monthFilter').value || 'ALL';
+      const barber = state.barbers.find(b => b.id === barberId);
+      const barberName = barber ? barber.name : barberId;
+      const today = new Date().toLocaleDateString('sk-SK');
+
+      let updatedCount = 0;
+      state.sales.forEach(s => {
+        const matchesMonth = selectedMonth === 'ALL' || normalizeYearMonth(s.month, s.timestamp) === selectedMonth;
+        const isUnpaid = !(s.paidAt && String(s.paidAt).trim());
+        if (s.barberId === barberId && matchesMonth && isUnpaid) {
+          s.paidAt = today;
+          state.localPaidOverrides[String(s.id)] = today;
+          updatedCount++;
+        }
+      });
+
+      if (updatedCount === 0) return;
+
+      saveLocalFallback();
+      renderAdmin();
+
+      if (isApiConfigured()) {
+        setSyncBadge('Ukladám výplatu...');
+        try {
+          await apiRequest({
+            action: 'markBarberPaid',
+            barberId: barberId,
+            month: selectedMonth,
+            paidAt: today
+          });
+          setSyncBadge('Google Cloud Sync');
+          showToast(`Vyplatené: ${barberName}`, `Provízia pre barbera ${barberName} bola označená ako vyplatená (${today}).`);
+        } catch (err) {
+          setSyncBadge('Chyba ukladania', true);
+          showToast('Chyba', err.message || 'Skús znova.');
+        }
+      } else {
+        showToast(`Vyplatené: ${barberName}`, `Provízia pre barbera ${barberName} bola označená ako vyplatená (${today}).`);
+      }
+    }
+
+    async function unpayBarberCommission(barberId) {
+      const selectedMonth = document.getElementById('payoutMonthFilter').value || document.getElementById('monthFilter').value || 'ALL';
+      const barber = state.barbers.find(b => b.id === barberId);
+      const barberName = barber ? barber.name : barberId;
+
+      state.sales.forEach(s => {
+        const matchesMonth = selectedMonth === 'ALL' || normalizeYearMonth(s.month, s.timestamp) === selectedMonth;
+        if (s.barberId === barberId && matchesMonth) {
+          s.paidAt = '';
+          state.localPaidOverrides[String(s.id)] = '';
+        }
+      });
+
+      saveLocalFallback();
+      renderAdmin();
+
+      if (isApiConfigured()) {
+        setSyncBadge('Vraciam stav výplaty...');
+        try {
+          await apiRequest({
+            action: 'markBarberPaid',
+            barberId: barberId,
+            month: selectedMonth,
+            paidAt: ''
+          });
+          setSyncBadge('Google Cloud Sync');
+          showToast(`Výplata zrušená: ${barberName}`, 'Provízia bola vrátená späť na výplatu.');
+        } catch (err) {
+          setSyncBadge('Chyba ukladania', true);
+          showToast('Chyba', err.message || 'Skús znova.');
+        }
+      } else {
+        showToast(`Výplata zrušená: ${barberName}`, 'Provízia bola vrátená späť na výplatu.');
+      }
     }
 
     function renderAll() {
@@ -1048,7 +1210,7 @@
       try {
         await apiRequest({
           action: 'saveConfig',
-          config: { shippingRate: state.shippingRate, commissionRate: state.commissionRate, adminPassword: state.adminPassword, barbers: state.barbers, products: state.products }
+          config: { shippingRate: state.shippingRate, commissionRate: state.commissionRate, adminPassword: state.adminPassword, paidMonths: state.paidMonths, barbers: state.barbers, products: state.products }
         });
         setSyncBadge('Google Cloud Sync');
         showToast('Uložené do cloudu', 'Nastavenia, ceny aj % barberov sú uložené v Google Tabuľke.');
